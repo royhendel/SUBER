@@ -54,33 +54,31 @@ public class SignUpActivity extends AppCompatActivity {
                     UsersDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
                         @Override
                         public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                            if(dataSnapshot.child(user.getName()).exists()){
+                            if (dataSnapshot.child(user.getName()).exists()) {
                                 Toast.makeText(SignUpActivity.this, "That UID Exists!", Toast.LENGTH_SHORT).show();
-                            }
-                            else{
+                            } else {
                                 UsersDatabase.child(username_input).setValue(user);
                                 Toast.makeText(SignUpActivity.this, "New User Created", Toast.LENGTH_SHORT).show();
                             }
                         }
+
                         @Override
                         public void onCancelled(@NonNull DatabaseError databaseError) {
 
                         }
                     });
 
-                }
-                else{
+                } else {
                     Toast.makeText(SignUpActivity.this, "Please Enter Legitimate Role!", Toast.LENGTH_SHORT).show();
                     role.setText("");
                 }
-
-            loginbtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
-                    startActivity(intent);
-                }
-            });
             }
-    });
+        });
+        loginbtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(SignUpActivity.this, MainActivity.class);
+                startActivity(intent);
+            }
+        });
 }}
