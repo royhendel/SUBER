@@ -48,8 +48,6 @@ public class MainActivity extends AppCompatActivity {
                 Intent intent = new Intent(MainActivity.this, SignUpActivity.class);
                 startActivity(intent);
             }
-
-
         });
         loginbtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -76,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
                         User Current_Attempt = dataSnapshot.child(username_input).getValue(User.class);
                         if(Current_Attempt.getPassword().equals(password_input)){
                             Toast.makeText(MainActivity.this, "Successfully logged in", Toast.LENGTH_SHORT).show();
+                            switch (Current_Attempt.getRole()){
+                                case "Doctor":
+                                    Intent intent = new Intent(MainActivity.this, DoctorHomeScreen.class);
+                                    startActivity(intent);
+
+                            }
                         }
                         else{
                             Toast.makeText(MainActivity.this, "Password is Incorrect", Toast.LENGTH_SHORT).show();
@@ -83,9 +87,11 @@ public class MainActivity extends AppCompatActivity {
 
                     }
                     else{
-                        Toast.makeText(MainActivity.this, "Username is Not Registered", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.this, "Please Enter a Username", Toast.LENGTH_SHORT).show();
                     }
-
+                }
+                else{
+                    Toast.makeText(MainActivity.this, "Username is Not Registered", Toast.LENGTH_SHORT).show();
                 }
 
             }
