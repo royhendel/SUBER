@@ -37,7 +37,7 @@ public class DoctorHomeScreen extends Activity {
     private static PrintWriter pw;
 
     private static final int SERVERPORT = 8820;
-    private static final String SERVER_IP = "10.0.0.13";
+    private static final String SERVER_IP = "10.0.54.56";
     private Boolean connected = false;
 
     @Override
@@ -74,6 +74,7 @@ public class DoctorHomeScreen extends Activity {
                         }
                     });
                     connected = true;
+                    send(current_user.getrole()+ currentuser.getname() + "has connected");
                     send_req_button.setOnClickListener(new View.OnClickListener()  {
                         @Override
                         public void onClick(View v){
@@ -114,8 +115,23 @@ public class DoctorHomeScreen extends Activity {
         }
 
     }
-    public void SendRequest(String oldroom, String newroom){
+    public JSONObject serialize_request(String doctorUID, String current_room, String patient, String new_room) {
+        JSONObject obj = new JSONObject();
+        try{
+        obj.put("Doctor", doctorUID);
+        obj.put("Patients_Room", current_room);
+        obj.put("Next_Room", new_room);
+        obj.put("Patient", patient);
 
+        Log.d("Json", "succeeded");
+        return obj;
+        }catch(org.json.JSONException e){
+            Log.d("Json", "Failed");
+            return null;
+        }
+    }
+    public void SendRequest(String oldroom, String newroom){
+        
     }
 }
 

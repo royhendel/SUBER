@@ -78,7 +78,9 @@ public class MainActivity extends AppCompatActivity {
                                 case "Doctor":
                                     Intent intent = new Intent(MainActivity.this, DoctorHomeScreen.class);
                                     startActivity(intent);
-
+                                case "Saniter":
+                                    Intent intent1 = new Intent(MainActivity.this, SaniterHomeScreen.class);
+                                    startActivity(intent1);
                             }
                         }
                         else{
