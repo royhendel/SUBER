@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -23,7 +24,6 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText username, password;
     private Button loginbtn, registerbtn;
-
     FirebaseDatabase database;
     DatabaseReference UsersDatabase;
 
@@ -53,10 +53,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Toast.makeText(MainActivity.this, "Verifying User Information", Toast.LENGTH_SHORT).show();
-
                 String username_input = username.getText().toString();
                 String password_input = password.getText().toString();
-
                 Log_in(username_input, password_input);
 
             }
@@ -74,13 +72,15 @@ public class MainActivity extends AppCompatActivity {
                         User Current_Attempt = dataSnapshot.child(username_input).getValue(User.class);
                         if(Current_Attempt.getPassword().equals(password_input)){
                             Toast.makeText(MainActivity.this, "Successfully logged in", Toast.LENGTH_SHORT).show();
-                            switch (Current_Attempt.getRole()){
-                                case "Doctor":
-                                    Intent intent = new Intent(MainActivity.this, DoctorHomeScreen.class);
-                                    startActivity(intent);
-                                case "Saniter":
-                                    Intent intent1 = new Intent(MainActivity.this, SaniterHomeScreen.class);
-                                    startActivity(intent1);
+                            if (Current_Attempt.getRole().equals("Doctor")){
+                                Intent intent = new Intent(MainActivity.this, DoctorHomeScreen.class);
+                                intent.putExtra("Current_User", Current_Attempt);
+                                startActivity(intent);
+                            }
+                            else if (Current_Attempt.getRole().equals("Saniter")){
+                                Intent intent = new Intent(MainActivity.this, SaniterHomeScreen.class);
+                                intent.putExtra("Current_User", Current_Attempt);
+                                startActivity(intent);
                             }
                         }
                         else{

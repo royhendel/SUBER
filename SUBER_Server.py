@@ -1,10 +1,14 @@
 import socket
 import time
+import select
 import threading
 import json
+import pyrebase
+import Requests
 
-IP = '10.0.54.56'
+IP = '10.0.0.16'
 PORT = 8820
+
 """
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((IP, PORT))
@@ -18,9 +22,12 @@ class Server(object):
     def __init__(self, ip, port):
         self.ip = ip
         self.port = port
-        self.clientlist = []
-        self.saniterlist = []
         self.doctorlist = []
+        self.clientlist = []
+        self.saniterdic = {}
+        self.reqdic = {}
+        self.current_mac_dic = {}
+
 
     def start(self):
         try:
@@ -37,56 +44,148 @@ class Server(object):
                 msg = clientSocket.recv(1024)
                 print('received message: %s' % msg.decode())
                 # implement here your main logic
-                self.clientlist.append(sock)
-                print self.clientlist
+                self.clientlist.append(clientSocket)
                 if msg[0] == "D":
-                    self.doctorlist.append(sock)
+                    self.doctorlist.append(clientSocket)
+                    self.handledoc(clientSocket)
+                elif msg[0] == "S":
+                    msglist = msg.split(" ")
+                    self.saniterdic[clientSocket] = msglist[1]
+                    self.current_mac_dic[clientSocket] = msglist[2]
+                    self.reqdic[clientSocket] = "False"
+                    print self.saniterdic
+                    self.handlesan(clientSocket)
                 else:
-                    self.clientlist.append(sock)
-                self.handleClient(clientSocket)
+                    print "msg failed. it was: "
 
         except socket.error as e:
             print(e)
-    def handleClient(self, clientSock):
+
+    def handledoc(self, clientSock):
         if True:
-            print clientSock
-            thread = threading.Thread(target=self.thread_func, args=(clientSock,))
+            print "handledoc print 1"
+            thread = threading.Thread(target=self.doc_thread_func, args=(clientSock,))
             thread.start()
 
-    def thread_func(self, clientSock):
-        noreq = true
-        if clientSock in self.doctorlist
-            noreq = true
-            while noreq:
-                clientSock.recv(1024)
-                #JSONunload, make sure it is req format
-                noreq = false
-            #check current room, find close routers, find close saniters.
-            pass
-            #clientSock.send(hash + " " + str(self.startpoint) + " " + str(self.endpoint))
-            #self.startpoint += 1000000
-            #response = clientSock.recv(1024)
-            #if response.__len__() == 10:
-                #self.found = True
-                #self.end(response)
-            #if self.startpoint == self.endpoint:
-            #   self.end("the correct num for the hash is not in this range")
+    def handlesan(self, clientSock):
+        if True:
+            print "handlesan print 1"
+            thread = threading.Thread(target=self.san_thread_func, args=(clientSock,))
+            thread.start()
 
-    def end(self, msg):
-        print "And the number is.......: " + msg + "!"
-        for sock in self.socklist:
-            sock.close()
+    def handlereq(self, req):
+        if True:
+            print "handlereqprint 1"
+            thread = threading.Thread(target=self.req_thread_func, args=(req,))
+            thread.start()
+
+    def req_thread_func(self, req):
+        print "need to filter sans"
+        reqcheck = Requests.Request(req["Doctor"], req["Patients_Room"])
+        print reqcheck
+        print self.saniterdic
+        closesock = list(self.current_mac_dic.iterkeys())[0]
+        closesan = self.saniterdic[closesock]
+        db.child("users").child(closesan).child("Requests").child(req["ID"]).set(req)
+        self.reqdic[closesock] = req["ID"]
+        print "changed reqdic: "
+        while self.reqdic[closesock] == req["ID"]:
+            time.sleep(2)
+            print "waiting"
+        if self.reqdic[closesock] == "done":
+            print "request completed"
+            db.child("users").child(closesan).child("Requests_compeleted").child(req["ID"]).set(req)
+            db.child("users").child(closesan).child("Requests").child(req["ID"]).remove()
+            self.reqdic[closesock] = "False"
+        elif self.reqdic[closesock] == "nope":
+            print "req wasn't done by this dude"
+            self.reqdic[closesock] = "False"
+            self.handlereq(req)
         exit()
-# implement your logic here
-# E.G
-# create a thread to handle this client connection and return
-# to handle more inside connections
-#in the new thread:
-# send to client the hash and a range of numbers to check
-# if a client found the password close all connections and quit
-# else give the client another range of numbers to check
+
+    def doc_thread_func(self, clientSock):
+        while True:
+            print "doc_thread_func print 1"
+            req = clientSock.recv(1024)
+            print "req: " + req
+            if req == "logout":
+                self.logout(clientSock)
+            elif self.is_json(req):
+                request = json.loads(req)
+                #db.child("users").child(request["Doctor"]).child("Requests").child(req["ID"]).set(request)
+                self.handlereq(request)
+            else:
+                print "req failed: " + req
+        pass
+
+    def san_thread_func(self, clientSock):
+        print "san_thread_func print 1"
+        while True:
+            while self.reqdic[clientSock] == "False":
+                rlist, wlist, xlist = select.select([clientSock], [clientSock], [clientSock])
+                if wlist[0]:
+                    try:
+                        clientSock.send("hmm")
+                    except Exception as e:
+                        print e
+                        print "in weird place"
+                        self.disconnect(clientSock)
+                time.sleep(1)
+            try:
+                print "recieved id: " + self.reqdic[clientSock]
+                msg = clientSock.recv(1024)
+                print msg
+                if msg == "im doing it":
+                    msg2 = clientSock.recv(1024)
+                    print "msg 2: " + msg2
+                    if msg2 == "done":
+                        self.reqdic[clientSock] = "done"
+                if msg == "logout":
+                    self.logout()
+                if msg == "im not doing it":
+                    self.reqdic[clientSock] = "nope"
+                print "well it reaches here?"
+            except Exception as e:
+                print e
+                print "entered exeption"
+                self.reqdic[clientSock] = "nope"
+                self.disconnect(clientSock)
+
+    def disconnect(self, clientSock):
+        if clientSock in self.clientlist:
+            self.clientlist.remove(clientSock)
+        if clientSock in self.saniterdic:
+            self.saniterdic.pop(clientSock)
+        if clientSock in self.reqdic:
+            print "yeet"
+        if clientSock in self.current_mac_dic:
+            self.current_mac_dic.pop(clientSock)
+        print "logout"
+        clientSock.close()
+        exit()
+
+    def is_json(self, myjson):
+        try:
+            json_object = json.loads(myjson)
+        except ValueError as e:
+            return False
+        return True
+
+
 if __name__ == '__main__':
+    config = {
+        "apiKey": "AIzaSyBz-WGWsj6J8Hq-KOL9JRgaE0u9X7T7WYE",
+        "authDomain": "suberdatabase.firebaseapp.com",
+        "databaseURL": 'https://suberdatabase.firebaseio.com',
+        "projectId": "suberdatabase",
+        "storageBucket": "suberdatabase.appspot.com",
+        "messagingSenderId": "153977190202",
+        "appId": "1:153977190202:web:f9f5047bd267f6c929c203",
+        "measurementId": "G-FGQTD4QKTC"
+    }
+    firebase = pyrebase.initialize_app(config)
+    db = firebase.database()
     ip = IP
     port = 8820
-    s = Server(ip,port)
+    s = Server(ip, port)
     s.start()

@@ -1,8 +1,12 @@
 package com.example.suber_again;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.Random;
+
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.app.Activity;
@@ -14,10 +18,21 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import org.json.JSONObject;
 
+import java.sql.Time;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -30,15 +45,20 @@ import java.net.UnknownHostException;
 public class DoctorHomeScreen extends Activity {
 
     private TextView connected_bool;
-    private EditText current_room, new_room;
+    private EditText current_room, new_room, Patient_name;
     private Button send_req_button, view_history_button, log_out_button;
 
     private static Socket client;
     private static PrintWriter pw;
+    private static BufferedReader input;
+    private static String message;
 
     private static final int SERVERPORT = 8820;
-    private static final String SERVER_IP = "10.0.54.56";
+    private static final String SERVER_IP = "10.0.0.16";
     private Boolean connected = false;
+
+    FirebaseDatabase database;
+    DatabaseReference RequestDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,10 +69,97 @@ public class DoctorHomeScreen extends Activity {
 
         current_room = findViewById(R.id.ReqCurrentLocation);
         new_room = findViewById(R.id.ReqFutureLocationText);
+        Patient_name = findViewById(R.id.Patient_name);
 
         send_req_button = findViewById(R.id.Send_request_button);
         view_history_button = findViewById(R.id.ReqHistoryButton);
         log_out_button = findViewById(R.id.LogOutButton);
+
+        final User current_user = (User)getIntent().getSerializableExtra("Current_User");
+
+        send_req_button.setOnClickListener(new View.OnClickListener()  {
+            @Override
+            public void onClick(View v){
+                String From = current_room.getText().toString();
+                String To = new_room.getText().toString();
+                String Patient = Patient_name.getText().toString();
+                String ID = UUID.randomUUID().toString();
+                if(To.isEmpty()){
+                    Toast.makeText(DoctorHomeScreen.this, "Please Enter The Destination", Toast.LENGTH_SHORT).show();
+                }
+                else if(From.isEmpty()){
+                    Toast.makeText(DoctorHomeScreen.this, "Please Enter the Current Location", Toast.LENGTH_SHORT).show();
+                }
+                else if(Patient.isEmpty()){
+                    Toast.makeText(DoctorHomeScreen.this, "Please Enter the Current Location", Toast.LENGTH_SHORT).show();
+                }
+                else{
+                    String Doctor = current_user.getName();
+                    Toast.makeText(DoctorHomeScreen.this, "Request Sent", Toast.LENGTH_SHORT).show();
+                    SendRequest(Doctor, From, To, Patient, ID);
+                    /*String Doctor = current_user.getName();
+                    final Request request = new Request(Doctor, From, To, Patient, ID);
+                    database = FirebaseDatabase.getInstance();
+                    RequestDatabase = database.getReference("Requests");
+                    RequestDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                            RequestDatabase.child(request.getID()).setValue(request);
+                            Toast.makeText(DoctorHomeScreen.this, "New User Created", Toast.LENGTH_SHORT).show();
+                        }
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError databaseError) {
+                        }
+                    });*/
+                }
+            }
+        });
+
+        log_out_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(DoctorHomeScreen.this, "Logging out", Toast.LENGTH_SHORT).show();
+                if (!client.isConnected()){
+                Intent intent = new Intent(DoctorHomeScreen.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+                }
+                else {
+                    final Thread disconnectthread = new Thread(){
+                        @Override
+                        public void run(){
+                            try {
+                                send("logout");
+                                message = receive_message();
+                                Log.d("message recv", "in the on click the message is: " + message);
+                                if (message.equals("Log Out Successful")) {
+                                    Log.d("message recv", "Entered if" + message);
+                                    pw.close();
+                                    input.close();
+                                    client.close();
+                                    DoctorHomeScreen.this.runOnUiThread(new Runnable() {
+                                        public void run() {
+                                            //Do your UI operations like dialog opening or Toast here
+                                            Log.d("message recv", "in run");
+                                            connected_bool.setText("Not Connected");
+                                            Log.d("message recv", "in between change");
+                                            connected_bool.setTextColor(Color.RED);
+                                        }
+                                    });
+                                    Log.d("message recv", "logout succeeded");
+                                    Intent intent = new Intent(DoctorHomeScreen.this, MainActivity.class);
+                                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                    startActivity(intent);
+                                }
+                            } catch (IOException e) {
+                                Log.d("socket", "failed");
+                                e.printStackTrace();}
+                        }
+                    };
+                    disconnectthread.start();
+                }
+            }
+            });
 
         Thread t = new Thread(){
             @Override
@@ -61,40 +168,20 @@ public class DoctorHomeScreen extends Activity {
                     client = new Socket();
                     SocketAddress server = new InetSocketAddress(SERVER_IP,SERVERPORT);
                     client.connect(server);
-
+                    pw = new PrintWriter(client.getOutputStream());
+                    input = new BufferedReader(new InputStreamReader(client.getInputStream()));
                     DoctorHomeScreen.this.runOnUiThread(new Runnable() {
                         public void run() {
                             //Do your UI operations like dialog opening or Toast here
                             if(client.isConnected()) {
                                 connected_bool.setText("Connected");
                                 connected_bool.setTextColor(Color.GREEN);
-
                             }
-
                         }
                     });
                     connected = true;
-                    send(current_user.getrole()+ currentuser.getname() + "has connected");
-                    send_req_button.setOnClickListener(new View.OnClickListener()  {
-                        @Override
-                        public void onClick(View v){
-
-
-                            String old_room = current_room.getText().toString();
-                            String next_room = new_room.getText().toString();
-
-                            if(next_room.isEmpty()){
-                                Toast.makeText(DoctorHomeScreen.this, "Please Enter The Destination", Toast.LENGTH_SHORT).show();
-                            }
-                            else if(old_room.isEmpty()){
-                                Toast.makeText(DoctorHomeScreen.this, "Please Enter the Current Location", Toast.LENGTH_SHORT).show();
-                            }
-                            else{
-                                SendRequest(old_room, next_room);
-                            }
-
-                        }
-                    });
+                    final User current_user = (User) getIntent().getSerializableExtra("Current_User");
+                    send(current_user.getRole() + " " + current_user.getName() + " has connected");
                 } catch (IOException e) {
                     Log.d("socket", "failed");
                     e.printStackTrace();
@@ -102,36 +189,123 @@ public class DoctorHomeScreen extends Activity {
             }
         };
         t.start();
-
-        }
-    public void send(String s){
-        try {
-            pw = new PrintWriter(client.getOutputStream());
-            pw.write(s);
-            pw.flush();
-            pw.close();
-        }catch (IOException e){
-            e.printStackTrace();
         }
 
-    }
-    public JSONObject serialize_request(String doctorUID, String current_room, String patient, String new_room) {
+    public JSONObject serialize_request(Request req) {
         JSONObject obj = new JSONObject();
         try{
-        obj.put("Doctor", doctorUID);
-        obj.put("Patients_Room", current_room);
-        obj.put("Next_Room", new_room);
-        obj.put("Patient", patient);
+        obj.put("Doctor", req.getDoctor());
+        obj.put("Patients_Room", req.getPatients_Room());
+        obj.put("Next_Room", req.getNext_Room());
+        obj.put("Patient", req.getPatient());
+        obj.put("ID", req.getID());
+        obj.put("TimeRequested", req.getTimeRequested());
+        obj.put("Status", req.getStatus());
 
-        Log.d("Json", "succeeded");
+        Log.d("Json", "succeeded" + obj);
         return obj;
         }catch(org.json.JSONException e){
             Log.d("Json", "Failed");
             return null;
         }
     }
-    public void SendRequest(String oldroom, String newroom){
-        
+    public void SendRequest(String current_user, String oldroom, String newroom, String patient, String Id) {
+        String Doctor = current_user;
+        String From = oldroom;
+        String To = newroom;
+        String PatientName = patient;
+        String ID = Id;
+
+        final Request request = new Request(Doctor, From, To, PatientName, ID);
+        JSONObject serialized_request = serialize_request(request);
+        sendobj(serialized_request);
+        /*RequestDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                if (dataSnapshot.child(request.toString()).exists()) {
+                    Toast.makeText(DoctorHomeScreen.this, "That request Exists!", Toast.LENGTH_SHORT).show();
+                } else {
+                    RequestDatabase.child(Integer.toString(new Random().nextInt(500000000))).setValue(request);
+                    Toast.makeText(DoctorHomeScreen.this, "New User Created", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });*/
+    }
+
+    public void sendobj(JSONObject s){
+        Runnable r = new sendobjclass(s);
+        new Thread(r).start();
+
+    }
+    public void send(String s) {
+        Runnable r = new sendstrclass(s);
+        new Thread(r).start();
+    }
+    public String receive_message(){
+            getmsg r = new getmsg();
+            new Thread(r).start();
+            try {
+                while (r.getMsg() == null) {
+                    TimeUnit.SECONDS.sleep(1);
+                }
+                return r.getMsg();
+            } catch(InterruptedException e){
+                Log.d("message recv", "waiting threw exception");
+            }
+            return "Failed";
+    }
+
+    class getmsg implements Runnable {
+        private String msg = null;
+        public void run() {
+            try {
+                String message = input.readLine();
+                if (message != null) {
+                    Log.d("message recv", "success! message is: " + message);
+                    this.msg = message;
+                } else {
+                    Log.d("message recv", "message is empty");
+                }
+                Log.d("message recv", "thread finished");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        public String getMsg() {
+            return msg;
+        }
+    }
+    public class sendobjclass implements Runnable {
+
+        private JSONObject s;
+
+        public sendobjclass(JSONObject s) {
+            this.s = s;
+        }
+
+        public void run() {
+            pw.write(s.toString());
+            pw.flush();
+        }
+    }
+    public class sendstrclass implements Runnable {
+
+        private String s;
+
+        public sendstrclass(String s) {
+            this.s = s;
+        }
+
+        public void run() {
+            Log.d("sent string", "the string is " + s);
+            pw.write(s);
+            pw.flush();
+        }
     }
 }
 
