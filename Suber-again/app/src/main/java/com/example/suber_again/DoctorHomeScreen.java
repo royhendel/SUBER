@@ -3,6 +3,8 @@ package com.example.suber_again;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import android.content.DialogInterface;
@@ -13,8 +15,11 @@ import android.app.Activity;
 import android.util.Log;
 import android.util.LogPrinter;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,21 +49,27 @@ import java.net.UnknownHostException;
 
 public class DoctorHomeScreen extends Activity {
 
-    private TextView connected_bool;
-    private EditText current_room, new_room, Patient_name;
+    private TextView connected_bool, current_room, new_room;
+    private EditText Patient_name;
     private Button send_req_button, view_history_button, log_out_button;
+    private Spinner current_room_spinner, next_room_spinner;
 
     private static Socket client;
     private static PrintWriter pw;
     private static BufferedReader input;
     private static String message;
-
+    private static String[] rooms;
+    private static List<String> roomslist;
     private static final int SERVERPORT = 8820;
     private static final String SERVER_IP = "10.0.0.16";
     private Boolean connected = false;
+    private static Boolean roomsnotready = false;
+
+    public String From = "";
+    public String To = "";
 
     FirebaseDatabase database;
-    DatabaseReference RequestDatabase;
+    DatabaseReference RoomsDatabase;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,9 +77,11 @@ public class DoctorHomeScreen extends Activity {
         setContentView(R.layout.activity_doctor_home_screen);
 
         connected_bool = findViewById(R.id.ConnectedBool);
-
         current_room = findViewById(R.id.ReqCurrentLocation);
         new_room = findViewById(R.id.ReqFutureLocationText);
+        current_room_spinner = findViewById(R.id.current_room_spinner);
+        next_room_spinner = findViewById(R.id.next_room_spinner);
+
         Patient_name = findViewById(R.id.Patient_name);
 
         send_req_button = findViewById(R.id.Send_request_button);
@@ -77,11 +90,60 @@ public class DoctorHomeScreen extends Activity {
 
         final User current_user = (User)getIntent().getSerializableExtra("Current_User");
 
+        roomslist = new ArrayList<String>();
+        database = FirebaseDatabase.getInstance();
+        RoomsDatabase = database.getReference("Rooms");
+        RoomsDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot postSnapshot: dataSnapshot.getChildren()) {
+                    Log.d("roomsdatabase", "value: " + postSnapshot.getValue().toString());
+                    roomslist.add(postSnapshot.getValue().toString());
+                }
+                Log.d("roomslist", roomslist.toString());
+                rooms = roomslist.toArray(new String[0]);
+                Log.d("rooms", rooms.toString());
+                Log.d("roomslist","fuck: "+ roomslist.toString());
+                ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item, rooms);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                current_room_spinner.setAdapter(adapter);
+                next_room_spinner.setAdapter(adapter);
+
+                current_room_spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                        From = String.valueOf(parent.getItemAtPosition(position));
+                        Log.d("new spinner", "from spinner fine" + From);
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+
+                    }
+                });
+                next_room_spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                        To = String.valueOf(parent.getItemAtPosition(position));
+                        Log.d("new spinner", "to spinner fine" + To);
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) {
+
+                    }
+                });
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.w("roomsdatabase", "loadPost:onCancelled", databaseError.toException());
+            }
+        });
+
+
         send_req_button.setOnClickListener(new View.OnClickListener()  {
             @Override
             public void onClick(View v){
-                String From = current_room.getText().toString();
-                String To = new_room.getText().toString();
                 String Patient = Patient_name.getText().toString();
                 String ID = UUID.randomUUID().toString();
                 if(To.isEmpty()){

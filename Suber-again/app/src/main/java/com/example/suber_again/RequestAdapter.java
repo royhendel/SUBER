@@ -140,6 +140,19 @@ public class RequestAdapter extends RecyclerView.Adapter<RequestAdapter.ViewHold
                     tsectimer.Cancelthread();
                 }
             });
+            /*SaniterHomeScreen.cv.setListener2(new connectedvariable.ChangeListener() {
+                @Override
+                public void onChange() {
+                    if (!SaniterHomeScreen.cv.isconnected()) {
+                        Log.d("Rip", "onChange: actually worked, deleted the ting");
+                        SaniterHomeScreen.send("im not doing it");
+                        ref.child(req.getID()).removeValue();
+                        DeclineButton.setOnClickListener(null);
+                        AcceptButton.setOnClickListener(null);
+                        tsectimer.Cancelthread();
+                    }
+                }
+            });*/
             Log.d("Rip", "Starting Timer");
         }
         @Override

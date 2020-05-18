@@ -54,6 +54,7 @@ public class SignUpActivity extends AppCompatActivity {
             }
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
+                role_input = "Nothing";
             }
         });
 

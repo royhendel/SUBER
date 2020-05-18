@@ -61,7 +61,7 @@ public class SaniterHomeScreen extends Activity {
     private static final int SERVERPORT = 8820;
     private static final String SERVER_IP = "10.0.0.16";
     private Boolean connected = false;
-    private connectedvariable cv = new connectedvariable();
+    public static connectedvariable cv = new connectedvariable();
     public static connectedvariable lastsanvar = new connectedvariable();
     private RequestAdapter reqadapter;
     private String current_mac;
@@ -92,8 +92,8 @@ public class SaniterHomeScreen extends Activity {
                         try {
                             while (oldbssid.equals(newbssid)) {
                                 try {
-                                    TimeUnit.SECONDS.sleep(10);
-                                    Log.d("cv", "waited 10 secs");
+                                    TimeUnit.SECONDS.sleep(5);
+                                    Log.d("cv", "waited 5 secs");
                                 } catch (InterruptedException e) {
                                     Log.d("connected", "time sleep failed");
                                     e.printStackTrace();
@@ -104,9 +104,10 @@ public class SaniterHomeScreen extends Activity {
                                 Log.d("cv", "in checker oldbssid: " + oldbssid + "new bssid: " + newbssid);
                             }
                         }catch (NullPointerException n){
-                            Log.d("cv", "disconnected in null");
+                            Log.d("cv", "disconnected in null: " + newbssid);
                         }
                         if (newbssid == null) {
+                            Log.d("cv", "wifi gone");
                             cv.setNul(true);
                         }
                         /*while(newbssid == null) {
@@ -147,28 +148,6 @@ public class SaniterHomeScreen extends Activity {
         cv.setListener(new connectedvariable.ChangeListener() {
             @Override
             public void onChange() {
-                if (cv.isnul()){
-                    WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
-                    String newbssid = wifiInfo.getBSSID();
-                    while(newbssid == null) {
-                        SaniterHomeScreen.this.runOnUiThread(new Runnable() {
-                            public void run() {
-                                Toast.makeText(SaniterHomeScreen.this, "Please Reconnect to the WiFi", Toast.LENGTH_LONG).show();
-                                connected_bool.setText("Not Connected");
-                                connected_bool.setTextColor(Color.RED);
-                            }
-                        });
-                        try {
-                            TimeUnit.SECONDS.sleep((4));
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                        wifiInfo = wifiMgr.getConnectionInfo();
-                        newbssid = wifiInfo.getBSSID();
-                    }
-                }
                 if (!cv.isconnected()) {
                     SaniterHomeScreen.this.runOnUiThread(new Runnable() {
                         public void run() {
@@ -177,6 +156,28 @@ public class SaniterHomeScreen extends Activity {
                         }
                     });
                     int waitcheck = disconnect();
+                    if (cv.isnul()){
+                        WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                        WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+                        String newbssid = wifiInfo.getBSSID();
+                        while(newbssid == null) {
+                            SaniterHomeScreen.this.runOnUiThread(new Runnable() {
+                                public void run() {
+                                    Toast.makeText(SaniterHomeScreen.this, "Please Reconnect to the WiFi", Toast.LENGTH_LONG).show();
+                                    connected_bool.setText("Not Connected");
+                                    connected_bool.setTextColor(Color.RED);
+                                }
+                            });
+                            try {
+                                TimeUnit.SECONDS.sleep((4));
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                            wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                            wifiInfo = wifiMgr.getConnectionInfo();
+                            newbssid = wifiInfo.getBSSID();
+                        }
+                    }
                     if (waitcheck == 1) {
                         Thread reconnect = new Thread() {
                             @Override
