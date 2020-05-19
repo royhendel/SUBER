@@ -4,6 +4,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.IgnoreExtraProperties;
 
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -24,7 +25,8 @@ public class Request implements Serializable {
     public Request(String Doctor, String Patients_Room, String Next_Room, String Patient, String ID) {
         this.Status = "Unfinished";
         this.Doctor = Doctor;
-        this.TimeRequested = new Date().toString();
+        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        this.TimeRequested = formatter.format(new Date());
         this.Patients_Room = Patients_Room;
         this.Next_Room = Next_Room;
         this.Patient = Patient;
@@ -33,13 +35,13 @@ public class Request implements Serializable {
 
     public Request(DataSnapshot snap){
         HashMap<String, String> mymap = snap.getValue(HashMap.class);
-        this.Status = mymap.getOrDefault("Status", "Fuck me");
-        this.Doctor = mymap.getOrDefault("Doctor", "Duck me");
-        this.Next_Room = mymap.getOrDefault("Next_Room", "Luck me");
-        this.TimeRequested = mymap.getOrDefault("TimeRequested", "Uck me");
-        this.Patient = mymap.getOrDefault("Patient", "Muck Me");
-        this.ID = mymap.getOrDefault("ID", "Cuck Me");
-        this.Patients_Room = mymap.getOrDefault("Patients_Room", "Puck Me");
+        this.Status = mymap.getOrDefault("Status", "Unfinished");
+        this.Doctor = mymap.getOrDefault("Doctor", "House");
+        this.Next_Room = mymap.getOrDefault("Next_Room", "Call Admin");
+        this.TimeRequested = mymap.getOrDefault("TimeRequested", "Call Admin");
+        this.Patient = mymap.getOrDefault("Patient", "Call Admin");
+        this.ID = mymap.getOrDefault("ID", "Call Admin");
+        this.Patients_Room = mymap.getOrDefault("Patients_Room", "Call Admin");
     }
 
     public String getStatus() {

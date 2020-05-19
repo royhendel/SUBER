@@ -59,7 +59,7 @@ public class SaniterHomeScreen extends Activity {
     private DatabaseReference RequestsDatabase;
 
     private static final int SERVERPORT = 8820;
-    private static final String SERVER_IP = "10.0.0.16";
+    private static final String SERVER_IP = "10.0.0.24";
     private Boolean connected = false;
     public static connectedvariable cv = new connectedvariable();
     public static connectedvariable lastsanvar = new connectedvariable();
@@ -110,23 +110,6 @@ public class SaniterHomeScreen extends Activity {
                             Log.d("cv", "wifi gone");
                             cv.setNul(true);
                         }
-                        /*while(newbssid == null) {
-                            SaniterHomeScreen.this.runOnUiThread(new Runnable() {
-                                public void run() {
-                                    Toast.makeText(SaniterHomeScreen.this, "Please Reconnect to the WiFi", Toast.LENGTH_LONG).show();
-                                    connected_bool.setText("Not Connected");
-                                    connected_bool.setTextColor(Color.RED);
-                                }
-                            });
-                            try {
-                                TimeUnit.SECONDS.sleep((5));
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                            wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                            wifiInfo = wifiMgr.getConnectionInfo();
-                            newbssid = wifiInfo.getBSSID();
-                        }*/
                         cv.setBoo(false);
                     }
                     try {
@@ -142,7 +125,9 @@ public class SaniterHomeScreen extends Activity {
         view_history_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                Intent intent = new Intent(SaniterHomeScreen.this, PastRequestScreen.class);
+                intent.putExtra("Current_User", current_user);
+                startActivity(intent);
             }
         });
         cv.setListener(new connectedvariable.ChangeListener() {
@@ -183,29 +168,6 @@ public class SaniterHomeScreen extends Activity {
                             @Override
                             public void run() {
                                 async_connect_to_socket(current_user, false);
-                            /*try {
-                    client = new Socket();
-                    SocketAddress server = new InetSocketAddress(SERVER_IP,SERVERPORT);
-                    client.connect(server);
-                    pw = new PrintWriter(client.getOutputStream());
-                    input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                    SaniterHomeScreen.this.runOnUiThread(new Runnable() {
-                        public void run() {
-                            //Do your UI operations like dialog opening or Toast here
-                            if (client.isConnected()) {
-                                connected_bool.setText("Connected");
-                                connected_bool.setTextColor(Color.GREEN);
-                            }
-                        }
-                    });
-                    WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                    WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
-                    send(current_user.getRole() + " " + current_user.getName() + " " + "wifiInfo.getBSSID()");
-                    connected = true;
-                } catch (IOException e) {
-                    Log.d("socket", "failed");
-                    e.printStackTrace();
-                }*/
                             }
                         };
                         reconnect.start();
@@ -233,7 +195,12 @@ public class SaniterHomeScreen extends Activity {
             @Override
             public void onClick(View v) {
                 Toast.makeText(SaniterHomeScreen.this, "Logging out", Toast.LENGTH_SHORT).show();
-                if (!client.isConnected()) {
+                int waitcheck = disconnect();
+                Intent intent = new Intent(SaniterHomeScreen.this, MainActivity.class);
+                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+
+                /*if (!client.isConnected()) {
                     Intent intent = new Intent(SaniterHomeScreen.this, MainActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     startActivity(intent);
@@ -271,7 +238,7 @@ public class SaniterHomeScreen extends Activity {
                         }
                     };
                     disconnectthread.start();
-                }
+                }*/
             }
         });
         Thread adaptor_thread = new Thread(){
@@ -368,6 +335,7 @@ public class SaniterHomeScreen extends Activity {
             }
         }.execute();
     }
+
     public int disconnect(){
         final Thread disconnectthread = new Thread() {
             @Override
@@ -411,10 +379,6 @@ public class SaniterHomeScreen extends Activity {
         }
         return 1;
     }
-    /*public void Removereq(Request req){
-        RequestsDatabase.child(req.getID()).removeValue();
-        Log.d("req", "req removed");
-    }*/
     public static class sendstrclass implements Runnable {
 
         private String s;

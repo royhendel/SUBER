@@ -2,6 +2,7 @@ package com.example.suber_again;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,9 +62,9 @@ public class DoctorHomeScreen extends Activity {
     private static String[] rooms;
     private static List<String> roomslist;
     private static final int SERVERPORT = 8820;
-    private static final String SERVER_IP = "10.0.0.16";
+    private static final String SERVER_IP = "10.0.0.24";
     private Boolean connected = false;
-    private static Boolean roomsnotready = false;
+
 
     public String From = "";
     public String To = "";
@@ -93,6 +94,7 @@ public class DoctorHomeScreen extends Activity {
         roomslist = new ArrayList<String>();
         database = FirebaseDatabase.getInstance();
         RoomsDatabase = database.getReference("Rooms");
+        connected_bool.setText("");
         RoomsDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -139,7 +141,14 @@ public class DoctorHomeScreen extends Activity {
                 Log.w("roomsdatabase", "loadPost:onCancelled", databaseError.toException());
             }
         });
-
+        view_history_button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(DoctorHomeScreen.this, PastRequestScreen.class);
+                intent.putExtra("Current_User", current_user);
+                startActivity(intent);
+            }
+        });
 
         send_req_button.setOnClickListener(new View.OnClickListener()  {
             @Override
@@ -156,8 +165,27 @@ public class DoctorHomeScreen extends Activity {
                     Toast.makeText(DoctorHomeScreen.this, "Please Enter the Current Location", Toast.LENGTH_SHORT).show();
                 }
                 else{
+                    Thread t = new Thread(){
+                        @Override
+                        public void run() {
+                            try {
+                                client = new Socket();
+                                SocketAddress server = new InetSocketAddress(SERVER_IP,SERVERPORT);
+                                client.connect(server);
+                                pw = new PrintWriter(client.getOutputStream());
+                                input = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                                connected = true;
+                                final User current_user = (User) getIntent().getSerializableExtra("Current_User");
+                                send(current_user.getRole() + " " + current_user.getName() + " has connected");
+                            } catch (IOException e) {
+                                Log.d("socket", "failed");
+                                e.printStackTrace();
+                            }
+                        }
+                    };
+                    t.start();
                     String Doctor = current_user.getName();
-                    Toast.makeText(DoctorHomeScreen.this, "Request Sent", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(DoctorHomeScreen.this, "Request Sent", Toast.LENGTH_LONG).show();
                     SendRequest(Doctor, From, To, Patient, ID);
                     /*String Doctor = current_user.getName();
                     final Request request = new Request(Doctor, From, To, Patient, ID);
@@ -181,76 +209,11 @@ public class DoctorHomeScreen extends Activity {
             @Override
             public void onClick(View v) {
                 Toast.makeText(DoctorHomeScreen.this, "Logging out", Toast.LENGTH_SHORT).show();
-                if (!client.isConnected()){
                 Intent intent = new Intent(DoctorHomeScreen.this, MainActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 startActivity(intent);
-                }
-                else {
-                    final Thread disconnectthread = new Thread(){
-                        @Override
-                        public void run(){
-                            try {
-                                send("logout");
-                                message = receive_message();
-                                Log.d("message recv", "in the on click the message is: " + message);
-                                if (message.equals("Log Out Successful")) {
-                                    Log.d("message recv", "Entered if" + message);
-                                    pw.close();
-                                    input.close();
-                                    client.close();
-                                    DoctorHomeScreen.this.runOnUiThread(new Runnable() {
-                                        public void run() {
-                                            //Do your UI operations like dialog opening or Toast here
-                                            Log.d("message recv", "in run");
-                                            connected_bool.setText("Not Connected");
-                                            Log.d("message recv", "in between change");
-                                            connected_bool.setTextColor(Color.RED);
-                                        }
-                                    });
-                                    Log.d("message recv", "logout succeeded");
-                                    Intent intent = new Intent(DoctorHomeScreen.this, MainActivity.class);
-                                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                                    startActivity(intent);
-                                }
-                            } catch (IOException e) {
-                                Log.d("socket", "failed");
-                                e.printStackTrace();}
-                        }
-                    };
-                    disconnectthread.start();
-                }
             }
             });
-
-        Thread t = new Thread(){
-            @Override
-            public void run() {
-                try {
-                    client = new Socket();
-                    SocketAddress server = new InetSocketAddress(SERVER_IP,SERVERPORT);
-                    client.connect(server);
-                    pw = new PrintWriter(client.getOutputStream());
-                    input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-                    DoctorHomeScreen.this.runOnUiThread(new Runnable() {
-                        public void run() {
-                            //Do your UI operations like dialog opening or Toast here
-                            if(client.isConnected()) {
-                                connected_bool.setText("Connected");
-                                connected_bool.setTextColor(Color.GREEN);
-                            }
-                        }
-                    });
-                    connected = true;
-                    final User current_user = (User) getIntent().getSerializableExtra("Current_User");
-                    send(current_user.getRole() + " " + current_user.getName() + " has connected");
-                } catch (IOException e) {
-                    Log.d("socket", "failed");
-                    e.printStackTrace();
-                }
-            }
-        };
-        t.start();
         }
 
     public JSONObject serialize_request(Request req) {
@@ -351,8 +314,17 @@ public class DoctorHomeScreen extends Activity {
         }
 
         public void run() {
+            while(!connected) {
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            Log.d("sent obj", "the string is " + s);
             pw.write(s.toString());
             pw.flush();
+            disconnect();
         }
     }
     public class sendstrclass implements Runnable {
@@ -367,7 +339,32 @@ public class DoctorHomeScreen extends Activity {
             Log.d("sent string", "the string is " + s);
             pw.write(s);
             pw.flush();
+            connected = true;
         }
+    }
+    public int disconnect(){
+        final Thread disconnectthread = new Thread() {
+            @Override
+            public void run() {
+                try {
+                    pw.close();
+                    input.close();
+                    client.close();
+                    Log.d("message recv", "logout succeeded");
+                } catch (IOException e) {
+                    Log.d("socket", "failed");
+                    e.printStackTrace();
+                }
+            }
+        };
+        disconnectthread.start();
+        try {
+            disconnectthread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        connected = false;
+        return 1;
     }
 }
 
